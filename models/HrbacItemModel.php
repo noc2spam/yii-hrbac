@@ -28,7 +28,7 @@ class HrbacItemModel extends CActiveRecord
 	 */
 	public function tableName()
 	{
-		return 'AuthItem';
+		return Yii::app()->authManager->itemTable;
 	}
 
 	/**

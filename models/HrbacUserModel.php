@@ -161,7 +161,7 @@ class HrbacUserModel 		//extends CModel
 	{
 		$sql = "
 			SELECT au.*, u.username, i.name as authname, i.alt_name, i.type, i.description 
-			FROM AuthUser AS au, users AS u, AuthItem AS i 
+			FROM " . Yii::app()->authManager->assignmentTable . " AS au, ". HrbacModule::$usersTable ." AS u, " . Yii::app()->authManager->itemTable . " AS i 
 			WHERE user_id = id AND au.auth_id=i.auth_id AND user_id=:userid AND au.auth_id=:itemid";
 		$data = Yii::app()->authManager->db->createCommand($sql)->queryRow(true, array(':userid'=>$userid, ':itemid'=>$auth_id));
 		$data['model'] = HrbacItemModel::model()->findByPk($auth_id);
@@ -170,7 +170,7 @@ class HrbacUserModel 		//extends CModel
 	
 	static function updateAuthItem($userid, $auth_id, $cond, $bizrule)
 	{
-		$sql = "UPDATE AuthUser SET cond=:cond, bizrule=:bizrule WHERE user_id=:userid AND auth_id=:itemid";
+		$sql = "UPDATE " . Yii::app()->authManager->assignmentTable . " SET cond=:cond, bizrule=:bizrule WHERE user_id=:userid AND auth_id=:itemid";
 		Yii::app()->authManager->db->createCommand($sql)->execute(array(
 			':cond'=>$cond, ':bizrule'=>$bizrule, 
 			':userid'=>$userid, ':itemid'=>$auth_id ));
@@ -178,7 +178,7 @@ class HrbacUserModel 		//extends CModel
 	
 	static function removeAuthItem($userid, $auth_id)
 	{
-			$sql = "DELETE FROM AuthUser WHERE user_id=:userid AND auth_id=:itemid";
+			$sql = "DELETE FROM " . Yii::app()->authManager->assignmentTable . " WHERE user_id=:userid AND auth_id=:itemid";
 			Yii::app()->authManager->db->createCommand($sql)->execute(array(
 				':userid'=>$userid, ':itemid'=>$itemid ));
 	}
@@ -187,22 +187,22 @@ class HrbacUserModel 		//extends CModel
 	static function assignAuthItem($username, $auth_id, $cond, $bizrule)
 	{
 		$db = Yii::app()->authManager->db;
-		$userid = $db->createCommand("SELECT id FROM users WHERE username=:username")
+		$userid = $db->createCommand("SELECT id FROM ". HrbacModule::$usersTable ." WHERE username=:username")
 			->queryScalar(array(':username'=>$username));
 		if( !$userid ) 
 			return "User '$username' not found";
 		
-		$authExists = $db->createCommand("SELECT COUNT(*) FROM AuthItem WHERE auth_id=:auth_id")
+		$authExists = $db->createCommand("SELECT COUNT(*) FROM " . Yii::app()->authManager->itemTable . " WHERE auth_id=:auth_id")
 			->queryScalar(array(':auth_id'=>$auth_id)); 
 		if( !$authExists )
 			return "Auth Item does not exist";
 			
-		$assignExists = $db->createCommand("SELECT COUNT(*) FROM AuthUser WHERE user_id=:userid AND auth_id=:auth_id")
+		$assignExists = $db->createCommand("SELECT COUNT(*) FROM " . Yii::app()->authManager->assignmentTable . " WHERE user_id=:userid AND auth_id=:auth_id")
 			->queryScalar(array(':userid'=>$userid, ':auth_id'=>$auth_id)); 
 		if( $assignExists )
 			return "Auth Assignment already exists. Please edit existing assignment";
 			
-		$sql = "INSERT INTO AuthUser VALUES ( :userid, :auth_id, :cond, :bizrule, NULL)";
+		$sql = "INSERT INTO " . Yii::app()->authManager->assignmentTable . " VALUES ( :userid, :auth_id, :cond, :bizrule, NULL)";
 		$db->createCommand($sql)->execute(array(
 			':cond'=>$cond, ':bizrule'=>$bizrule, 
 			':userid'=>$userid, ':auth_id'=>$auth_id ));
