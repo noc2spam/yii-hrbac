@@ -75,7 +75,7 @@ foreach($data['users'] as $user)
 			. "</td>";
 		echo "<td>" . $type[$auth['type']] . "</td>";
 		echo "<td>";
-//		echo CHtml::link(CHtml::encode($auth['name']),array("authuser/edituser","user"=>$auth['name'])) ;
+//		echo CHtml::link(CHtml::encode($auth['name']),array("hrbacuser/edituser","user"=>$auth['name'])) ;
 		echo CHtml::link(CHtml::encode($auth['alt_name'] ? $auth['alt_name'] : $auth['name']), array('viewitem', 'userid'=>$user['userid'], 'itemid'=>$auth['auth_id']));
 		if( $auth['description'] )
 			echo "<br/>{$auth['description']}";
