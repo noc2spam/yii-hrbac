@@ -14,7 +14,7 @@ $this->menu = array(
 	array('label'=>Yii::t('auth', 'Create Auth Item'), 'url'=>array('create')),
 	array('label'=>Yii::t('auth', 'Assign Auth Item'), 'url'=>array('assign')),
 	array('label'=>'List Auth Items', 'url'=>array('hrbacitem/index')),
-	array('label'=>'User Permissions', 'url'=>array('authuser/list')),
+	array('label'=>'User Permissions', 'url'=>array('hrbacuser/list')),
 );
 
 $name = $data['alt_name'] ? $data['alt_name'] : $data['authname'];

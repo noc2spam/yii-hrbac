@@ -127,7 +127,7 @@ class HrbacitemController extends Controller
 		$item = $this->loadModel();
 		if( Yii::app()->request->isPostRequest )
 		{
-			$item->replaceChildren(isset($_POST['include_ids']) ? $_POST['include_ids'] : array() );
+			$item->replaceChildren(isset($_POST['include_ids']) ? $_POST['include_ids'] : array(), $_POST['cond']  );
 		}
 		$this->render('include',array(
 			'model'=>$item,

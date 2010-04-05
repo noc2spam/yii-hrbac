@@ -16,7 +16,7 @@ $this->menu = array(
 	array('label'=>Yii::t('auth', 'Create Auth Item'), 'url'=>array('hrbacitem/create')),
 	array('label'=>Yii::t('auth', 'Assign Auth Item'), 'url'=>array('assign')),
 	array('label'=>'List Auth Items', 'url'=>array('hrbacitem/index')),
-	array('label'=>'User Permissions', 'url'=>array('authuser/list')),
+	array('label'=>'User Permissions', 'url'=>array('hrbacuser/list')),
 );
 
 echo "<h2>Update assignment of '{$name}' to '{$data['username']}'</h2>";

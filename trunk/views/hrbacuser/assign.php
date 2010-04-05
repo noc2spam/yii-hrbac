@@ -16,6 +16,7 @@ echo "<h2>{$this->pageTitle}";
 if(isset($data['username'])) echo " to '" . $data['username'] . "'";
 echo "</h2>";
 ?>
+<hr />
 <style type="text/css">
 div.evenrow {background-color: #E5F1F4; overflow: auto; padding: 10px; margin-right:10px;}
 div.oddrow {background-color: #F8F8F8; overflow: auto; padding: 10px; margin-right:10px;}
@@ -26,6 +27,30 @@ span.authname {font-weight: bold;}
 <form method="post">
 <div class="form">
 <span class="error"><?php echo $data['error']; ?></span>
+
+<div class="row">
+	<br/>
+	<label for="_user">User</label>
+	<?php
+	if( isset($data['username']) )
+	{
+		echo '<input type="hidden" id="_user" name="username" value="' . $data['username'] . '" />';
+		echo '<b>' . $data['username'] . '</b><br><br>';
+	} 
+	else 
+	{
+		$this->widget('CAutoComplete', array(
+			'name'=>'username',
+			'multiple'=>false,
+			'mustMatch'=>true,
+			'matchContains'=>true,
+			'autoFill'=>true,
+			'id'=>'_user',
+			'htmlOptions'=>array('size'=>20),
+		));
+	}
+	?>
+</div>
 
 <div class="titlerow">
 <div class="span-13">Auth Item</div><div class="span-2">Type</div><div class="span-2">Select</div>
@@ -62,29 +87,6 @@ function displayRow($data)
 
 displayRows($data['auths'], 'displayRow');
 ?>
-	<div class="row">
-		<br/>
-		<label for="_user">User</label>
-		<?php
-		if( isset($data['username']) )
-		{
-			echo '<input type="hidden" id="_user" name="username" value="' . $data['username'] . '" />';
-			echo '<b>' . $data['username'] . '</b><br><br>';
-		} 
-		else 
-		{
-			$this->widget('CAutoComplete', array(
-				'name'=>'username',
-				'multiple'=>false,
-				'mustMatch'=>true,
-				'matchContains'=>true,
-				'autoFill'=>true,
-				'id'=>'_user',
-				'htmlOptions'=>array('size'=>20),
-			));
-		}
-		?>
-	</div>
 	
 	<div class="row">
 		<label for="_cond">Condition</label>

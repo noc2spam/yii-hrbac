@@ -13,7 +13,19 @@ class HrbacItemModel extends CActiveRecord
 	 * @var string $bizrule
 	 * @var string $data
 	 */
+	private $_authPath;
+	private $_authItem;
+	private $_authUser;
+	private $_authChild;
 
+	public function __construct($scenario='insert')
+	{
+		$this->_authPath = Yii::app()->authManager->pathTable;
+		$this->_authItem = Yii::app()->authManager->itemTable;
+		$this->_authUser = Yii::app()->authManager->assignmentTable;
+		$this->_authChild = Yii::app()->authManager->itemChildTable;
+		parent::__construct($scenario);
+	}
 	/**
 	 * Returns the static model of the specified AR class.
 	 * @return CActiveRecord the static model class
@@ -58,9 +70,14 @@ class HrbacItemModel extends CActiveRecord
 		// NOTE: you may need to adjust the relation name and the related
 		// class name for the relations automatically generated below.
 		return array(
-			'authChildren' => array(self::MANY_MANY, 'HrbacItemModel', 'AuthChild(auth_id, child_id)', 'alias'=>'AuthItem'),
-			'authUsers' => array(self::HAS_MANY, 'AuthUser', 'auth_id'),
+			'authChildren' => array(self::MANY_MANY, 'HrbacItemModel', $this->_authChild . '(auth_id, child_id)'
+				, 'alias'=>$this->_authItem),
+			'authUsers' => array(self::HAS_MANY, $this->_authUser, 'auth_id'),
 		);
+//		return array(
+//			'authChildren' => array(self::MANY_MANY, 'HrbacItemModel', 'AuthChild(auth_id, child_id)', 'alias'=>'AuthItem'),
+//			'authUsers' => array(self::HAS_MANY, $this->_authUser, 'auth_id'),
+//		);
 	}
 
 	/**
@@ -83,16 +100,16 @@ class HrbacItemModel extends CActiveRecord
 	public function getAuthDescendants($startGen = 1)
 	{
 		return self::model()->findAllBySql(
-			"SELECT DISTINCT AuthItem.* 
-			FROM AuthItem, AuthPath 
+			"SELECT DISTINCT i.* 
+			FROM {$this->_authItem} i, {$this->_authPath} p 
 			WHERE senior_id={$this['auth_id']} AND auth_id=junior_id AND distance >= {$startGen}");
 	}
 	
 	public function getAuthAncestors($startGen = 1)
 	{
 		return self::model()->findAllBySql(
-			"SELECT DISTINCT AuthItem.* 
-			FROM AuthItem, AuthPath 
+			"SELECT DISTINCT i.* 
+			FROM {$this->_authItem} i, {$this->_authPath} p 
 			WHERE junior_id={$this['auth_id']} AND auth_id=senior_id AND distance >= {$startGen}");
 	}
 	
@@ -100,7 +117,7 @@ class HrbacItemModel extends CActiveRecord
 	{
 		return self::model()->findAllBySql(
 			"SELECT i.* 
-			FROM AuthItem AS i, AuthChild AS c 
+			FROM {$this->_authItem} i, {$this->_authChild} c 
 			WHERE child_id={$this['auth_id']} AND i.auth_id=c.auth_id");
 	}
 	
@@ -110,11 +127,12 @@ class HrbacItemModel extends CActiveRecord
 		
 		$sql = "
 			SELECT auth_id, name, alt_name, type, description, 
-				auth_id in (SELECT child_id FROM AuthChild WHERE auth_id={$this['auth_id']}) as ischild, 
-				auth_id in (SELECT junior_id FROM AuthPath WHERE senior_id={$this['auth_id']} AND distance > 1) as isdescendant
-			FROM AuthItem
+				(SELECT cond FROM {$this->_authChild} WHERE auth_id={$this['auth_id']} and child_id=i.auth_id) AS cond,
+				auth_id in (SELECT child_id FROM {$this->_authChild} WHERE auth_id={$this['auth_id']}) as ischild, 
+				auth_id in (SELECT junior_id FROM {$this->_authPath} WHERE senior_id={$this['auth_id']} AND distance > 1) as isdescendant
+			FROM {$this->_authItem} AS i
 			WHERE type <= {$this['type']}
-				AND auth_id NOT IN ( SELECT senior_id FROM AuthPath WHERE junior_id={$this['auth_id']} )
+				AND auth_id NOT IN ( SELECT senior_id FROM {$this->_authPath} WHERE junior_id={$this['auth_id']} )
 			ORDER BY type DESC";
 		return self::$db->createCommand($sql)->queryAll();
 	}
@@ -123,16 +141,16 @@ class HrbacItemModel extends CActiveRecord
 	 * Replace all children of the current auth item with the given list.
 	 * @param array $idArray
 	 */
-	public function replaceChildren($idArray)
+	public function replaceChildren($idArray, $conditions)
 	{
 		if($idArray === array() ) 
 		{
-			self::$db->createCommand("DELETE FROM AuthChild WHERE auth_id = " . $this->auth_id)->execute();
+			self::$db->createCommand("DELETE FROM {$this->_authChild} WHERE auth_id = " . $this->auth_id)->execute();
 			return;
 		}
 		
 		// First check for loop
-		$sql = "SELECT senior_id FROM AuthPath WHERE junior_id = " . $this->auth_id;
+		$sql = "SELECT senior_id FROM {$this->_authPath} WHERE junior_id = " . $this->auth_id;
 		$ineligible = self::$db->createCommand($sql)->queryAll();
 		foreach($idArray as $id)
 		{
@@ -141,15 +159,15 @@ class HrbacItemModel extends CActiveRecord
 		}
 		
 		// Now check for existence
-		$sql = "SELECT count(*) FROM AuthItem WHERE auth_id IN (" . implode(",", $idArray) . ")";
+		$sql = "SELECT count(*) FROM {$this->_authItem} WHERE auth_id IN (" . implode(",", $idArray) . ")";
 		if( self::$db->createCommand($sql)->queryScalar() != count($idArray) )
-			throw new CException(Yii::t('auth', "One of the following Auth Item is missing : ") . implode(", ", $idArray));
+			throw new CException(Yii::t('auth', "One of the following Auth Items is missing : ") . implode(", ", $idArray));
 		
-		self::$db->createCommand("DELETE FROM AuthChild WHERE auth_id = " . $this->auth_id)->execute();
+		self::$db->createCommand("DELETE FROM {$this->_authChild} WHERE auth_id = " . $this->auth_id)->execute();
 		
 		$pairs = array();
-		foreach($idArray as $id) $pairs[] = "(" . $this->auth_id . ", " . $id . ")";
-		$sql = "INSERT INTO AuthChild (auth_id, child_id) VALUES " . implode(", ", $pairs);
+		foreach($idArray as $id) $values[] = "(" . $this->auth_id . ", " . $id . ", " . self::$db->quotevalue($conditions[$id]) . ")";
+		$sql = "INSERT INTO {$this->_authChild} (auth_id, child_id, cond) VALUES " . implode(", ", $values);
 		self::$db->createCommand($sql)->execute();
 		Yii::app()->authManager->recreateAuthPathTable();
 	}
