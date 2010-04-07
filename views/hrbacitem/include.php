@@ -47,7 +47,6 @@ function displayRows($data, $function)
 	{
 		if( $curtype != $datum['type'])
 		{
-//			if($curtype != -1) $panels[$panel] .= '</div>';
 			$curtype = $datum['type'];
 			$panel = $type[$curtype];
 			$panels[$panel] = $titlerow;
@@ -56,7 +55,6 @@ function displayRows($data, $function)
 		$panels[$panel] .= $function($datum);
 		$panels[$panel] .= '</div>';
 	}
-//	$panels[$panel] .= '</div>';
 	return $panels;
 }
 
@@ -84,15 +82,8 @@ $this->widget('zii.widgets.jui.CJuiAccordion', array(
 	'panels'=>$panels,
     'options'=>array(
 		'autoHeight'=> false,
-//		'event'=>'mouseover', 
     ),
 ));
-//<h3><a href="#">panel 1</a></h3>
-//<div>content for panel 1</div>
-//<h3><a href="#">panel 2</a></h3>
-//<div>content for panel 2</div>
-
-//displayRows($model->getPotentialDescendants(), 'getRow');
 ?>
 <br/>
 <input type="submit" value="Submit" />
