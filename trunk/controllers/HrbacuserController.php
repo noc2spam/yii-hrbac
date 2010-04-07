@@ -69,36 +69,76 @@ class HrbacuserController extends Controller
 		$data = array('cond'=>'', 'bizrule'=>'', 'error'=>'');
 		if(Yii::app()->request->isAjaxRequest && isset($_GET['q']))
 		{
-			$names = Yii::app()->db->createCommand("SELECT username FROM users WHERE username LIKE :partial")
-				->queryColumn(array(':partial'=>$_GET['q'] . '%'));
-			$ret = implode("\n", $names);
-			echo $ret;
+			$users = Yii::app()->db->createCommand("SELECT id, username FROM " . HrbacModule::$usersTable . " WHERE username LIKE :partial")
+				->queryAll(true, array(':partial'=>$_GET['q'] . '%'));
+			$ret = array();
+			foreach($users as $user)
+			{
+				$ret[] = $user['username'] . '|' . $user['id'] ; 
+			}
+			echo implode("\n", $ret);
 			return;
 		}
-		elseif(Yii::app()->request->isPostRequest)
-		{
-			//authid, username, auth_cond, auth_bizrule
-			$error = HrbacUserModel::assignAuthItem($_POST['username'], $_POST['authid'], $_POST['auth_cond'], $_POST['auth_bizrule']);
-			if($error)
-			{
-				$data['error'] = $error;
-				$data['cond'] = $_POST['auth_cond'];
-				$data['bizrule'] = $_POST['auth_bizrule'];
-			}
-			else $this->redirect(array('list')); 
-		}
-		elseif( isset($_GET['userid']) )
+		if( isset($_GET['userid']) )
 		{
 			$data['userid'] = $_GET['userid']; 
 			$data['username'] = Yii::app()->db->createCommand("SELECT username FROM users WHERE id=:userid")
 				->queryScalar(array(':userid'=>$_GET['userid']));
-			$data['auths'] = HrbacUserModel::getAssignableAuthsByUserId($_GET['userid']);
+			$data['auths'] = HrbacUserModel::getAuthAssignmentsByUserId($_GET['userid']);
 		}
-		if( !isset($data['auths']) )
+		
+		if(Yii::app()->request->isPostRequest)
 		{
-			$auths = HrbacItemModel::model()->findAll();
-			$data['auths'] = $auths;
+			$messages = array(); $errors = array();
+			foreach($data['auths'] as $auth)
+			{
+				if( in_array($auth['auth_id'], $_POST['include_ids']) )
+				{
+					if($_POST['bizrule'][$auth['auth_id']] && strpos($_POST['bizrule'][$auth['auth_id']], 'return') === false )
+						$errors[$auth['auth_id']] =  "The PHP rule must have a return statement and return true or false";
+					elseif($_POST['bizrule'][$auth['auth_id']] && eval( 'return true; ' . $_POST['bizrule'][$auth['auth_id']]) !== true )
+						$errors[$auth['auth_id']] =  "The PHP rule has a syntax error";
+					elseif($auth['ischild'])
+					{
+						// Update
+						if( $_POST['cond'][$auth['auth_id']] != $auth['cond'] || $_POST['bizrule'][$auth['auth_id']] != $auth['bizrule'] )
+						{
+							HrbacUserModel::updateAuthItem($data['userid'], $auth['auth_id'], 
+								$_POST['cond'][$auth['auth_id']], $_POST['bizrule'][$auth['auth_id']]);
+							$messages[$auth['auth_id']] = 'Assignment Updated';
+						}
+					}
+					else
+					{
+						// Add
+						HrbacUserModel::assignAuthItem($data['username'], $auth['auth_id'], $_POST['cond'][$auth['auth_id']], $_POST['bizrule'][$auth['auth_id']]);
+						$messages[$auth['auth_id']] = 'Assignment Added';
+					}
+				}
+				elseif($auth['ischild'])
+				{
+					// Delete
+					HrbacUserModel::removeAuthItem($data['userid'], $auth['auth_id']);
+					$messages[$auth['auth_id']] = 'Assignment Removed';
+				}
+			}
+			$data['auths'] = HrbacUserModel::getAuthAssignmentsByUserId($_GET['userid']);
+			if($messages) $data['messages'] = $messages;
+			if($errors)
+			{
+				$data['errors'] = $errors;
+				foreach($data['auths'] as $key=>$auth)
+				{
+					if( array_key_exists($auth['auth_id'], $errors))
+					{
+						$data['auths'][$key]['bizrule'] = $_POST['bizrule'][$auth['auth_id']];
+						$data['auths'][$key]['cond'] = $_POST['cond'][$auth['auth_id']];
+					}
+				}
+			}
 		}
+		
+		
 		$this->render('assign', array('data'=>$data));
 	}
 }

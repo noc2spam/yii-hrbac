@@ -102,6 +102,7 @@ class HrbacUserModel 		//extends CModel
 		return $users;
 	}
 	
+	// Return directly assigned auths
 	static function getAuthsByUserId($userid)
 	{
 		$sql = "
@@ -125,6 +126,34 @@ class HrbacUserModel 		//extends CModel
 				AND p.junior_id = i.auth_id
 			ORDER BY type DESC";
 		$authRows = Yii::app()->authManager->db->createCommand($sql)->queryAll(true, array(':userid'=>$userid));
+		return $authRows;
+	}
+	
+	// Returns all auths marking the ones that are directly or indirectly assigned to user.
+	static function getAuthAssignmentsByUserId($userid)
+	{
+		$sql = "SELECT i.auth_id, i.name, i.alt_name, i.description, i.type, u.cond, u.bizrule, 1 AS ischild, 0 as isdescendant 
+			FROM " . Yii::app()->authManager->assignmentTable . " AS u, " . Yii::app()->authManager->itemTable . " AS i
+			WHERE u.auth_id=i.auth_id AND user_id=:userid";
+		$authRows = Yii::app()->authManager->db->createCommand($sql)->queryAll(true, array(':userid'=>$userid));
+		if(!count($authRows))
+			return array();
+		$authList = array();
+		foreach($authRows as $auth)
+		{
+			$authList[] = $auth['auth_id'];
+		}
+		
+		$sql = "SELECT auth_id, name, alt_name, description, type, '' AS cond, '' AS bizrule, 0 AS ischild, 
+				auth_id in ( SELECT junior_id FROM " . Yii::app()->authManager->pathTable . "
+				WHERE senior_id IN (" . implode(", ", $authList) . ") AND distance > 1) AS isdescendant 
+			FROM " . Yii::app()->authManager->itemTable . "
+			WHERE auth_id NOT IN (" . implode(", ", $authList) . ")
+			";
+
+		$authRows2 = Yii::app()->authManager->db->createCommand($sql)->queryAll(true, array(':userid'=>$userid));
+
+		array_splice($authRows, count($authRows), 0, $authRows2);
 		return $authRows;
 	}
 	
